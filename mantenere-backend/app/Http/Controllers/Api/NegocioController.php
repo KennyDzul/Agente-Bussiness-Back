@@ -246,6 +246,10 @@ class NegocioController extends Controller
 
                     if (!$equipo && isset($eqInput['id']) && is_numeric($eqInput['id'])) continue;
 
+                    $catId = (!empty($eqInput['categoria_id']) && is_numeric($eqInput['categoria_id']))
+                        ? (int)$eqInput['categoria_id']
+                        : null;
+
                     $equipo->fill([
                         'nombre' => $eqInput['nombre'],
                         'marca' => $eqInput['marca'],
@@ -255,7 +259,7 @@ class NegocioController extends Controller
                         'anioUso' => $eqInput['anioUso'] ?? null,
                         'foto' => $eqInput['foto'] ?? null,
                         'fotoPlaca' => $eqInput['fotoPlaca'] ?? null,
-                        'categoria_id' => $eqInput['categoria_id'] ?? null,
+                        'categoria_id' => $catId,
                         'subAreaId' => $eqInput['subAreaId'] ?? null,
                         'nombreSubArea' => $eqInput['nombreSubArea'] ?? null,
                         'subCategoria' => $eqInput['subCategoria'] ?? null,

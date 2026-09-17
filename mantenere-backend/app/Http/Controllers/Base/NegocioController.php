@@ -179,12 +179,15 @@ class NegocioController extends Controller
             foreach ($equiposData as $eqInput) {
                 $equipo = (isset($eqInput['id']) && is_numeric($eqInput['id'])) ? $area->equipos()->find($eqInput['id']) : new \App\Models\LevantamientoEquipo();
                 if (!$equipo && isset($eqInput['id']) && is_numeric($eqInput['id'])) continue;
+                $catId = (!empty($eqInput['categoria_id']) && is_numeric($eqInput['categoria_id']))
+                    ? (int)$eqInput['categoria_id']
+                    : null;
                 $equipo->fill([
                     'nombre' => $eqInput['nombre'], 'marca' => $eqInput['marca'],
                     'modelo' => $eqInput['modelo'], 'serie' => $eqInput['serie'] ?? null,
                     'anioFabricacion' => $eqInput['anioFabricacion'] ?? null, 'anioUso' => $eqInput['anioUso'] ?? null,
                     'foto' => $eqInput['foto'] ?? null, 'fotoPlaca' => $eqInput['fotoPlaca'] ?? null,
-                    'categoria_id' => $eqInput['categoria_id'] ?? null, 'subAreaId' => $eqInput['subAreaId'] ?? null,
+                    'categoria_id' => $catId, 'subAreaId' => $eqInput['subAreaId'] ?? null,
                     'nombreSubArea' => $eqInput['nombreSubArea'] ?? null, 'subCategoria' => $eqInput['subCategoria'] ?? null,
                 ]);
                 $area->equipos()->save($equipo);
