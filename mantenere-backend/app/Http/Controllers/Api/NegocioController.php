@@ -23,7 +23,7 @@ class NegocioController extends Controller
         $myLevel = $user && $user->role ? $user->role->hierarchy_level : 0;
 
 
-        $query = Negocio::select([
+        $query = Negocio::with('areas.equipos.categoria')->select([
             'id',
             'admin_autonomo_id',
             'nombre',
@@ -43,6 +43,8 @@ class NegocioController extends Controller
             'imagenPerfil',
             'imagen_portada',
             'estado_aprobacion',
+            'latitud',
+            'longitud',
             'created_at'
         ]);
 
@@ -51,8 +53,10 @@ class NegocioController extends Controller
             $query->where('admin_autonomo_id', $user->admin_autonomo_id ?? $user->id);
         } elseif ($roleName === 'gerente-sucursal') {
             $query->where('id', $user->negocio_id);
+        } elseif ($roleName === 'cliente') {
+            $query->whereNull('admin_autonomo_id')->where('user_id', $user->id);
         } elseif ($roleName !== 'admin' && $roleName !== 'root') {
-            // Clientes, técnicos etc. solo ven negocios del sistema principal
+            // Técnicos etc. solo ven negocios del sistema principal
             $query->whereNull('admin_autonomo_id');
         }
         // Admin / Root ven TODOS los negocios
@@ -119,7 +123,7 @@ class NegocioController extends Controller
     // 🔍 Obtener un solo negocio (Para Editar PerfilEmpresa)
     public function show($id)
     {
-        $negocio = Negocio::with('user')->find($id);
+        $negocio = Negocio::with(['user', 'areas.equipos.categoria'])->find($id);
 
         if (!$negocio) {
             return response()->json(['message' => 'Negocio no encontrado'], 404);
@@ -220,7 +224,11 @@ class NegocioController extends Controller
 
                 $uniqueEquipos = [];
                 foreach ($rawEquipos as $eq) {
-                    $key = isset($eq['id']) && is_numeric($eq['id']) ? 'id_'.$eq['id'] : 'name_'.($eq['nombre'] ?? '').'_'.($eq['subAreaId'] ?? '');
+                    $key = (isset($eq['id']) && is_numeric($eq['id']))
+                        ? 'id_'.$eq['id']
+                        : (isset($eq['id']) && !empty($eq['id'])
+                            ? 'str_'.$eq['id']
+                            : 'name_'.($eq['nombre'] ?? '').'_'.($eq['subAreaId'] ?? '').'_'.($eq['serie'] ?? ''));
                     $uniqueEquipos[$key] = $eq;
                 }
                 $equiposData = array_values($uniqueEquipos);
@@ -232,11 +240,11 @@ class NegocioController extends Controller
                 $area->equipos()->whereNotIn('id', $incomingEqIds)->delete();
 
                 foreach ($equiposData as $eqInput) {
-                    $equipo = is_numeric($eqInput['id']) 
+                    $equipo = (isset($eqInput['id']) && is_numeric($eqInput['id'])) 
                         ? $area->equipos()->find($eqInput['id']) 
                         : new \App\Models\LevantamientoEquipo();
 
-                    if (!$equipo && is_numeric($eqInput['id'])) continue;
+                    if (!$equipo && isset($eqInput['id']) && is_numeric($eqInput['id'])) continue;
 
                     $equipo->fill([
                         'nombre' => $eqInput['nombre'],

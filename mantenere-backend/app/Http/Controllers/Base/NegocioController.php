@@ -20,7 +20,7 @@ class NegocioController extends Controller
         $user     = $request->user();
         $roleName = strtolower($user->role->name);
 
-        $query = Negocio::select([
+        $query = Negocio::with('areas.equipos.categoria')->select([
             'id',
             'admin_autonomo_id',
             'nombre',
@@ -40,6 +40,8 @@ class NegocioController extends Controller
             'imagenPerfil',
             'imagen_portada',
             'estado_aprobacion',
+            'latitud',
+            'longitud',
             'created_at'
         ])->whereNull('admin_autonomo_id'); // Solo negocios base
 
@@ -53,7 +55,7 @@ class NegocioController extends Controller
 
     public function show($id)
     {
-        $negocio = Negocio::whereNull('admin_autonomo_id')->with('areas.equipos.categoria')->find($id);
+        $negocio = Negocio::whereNull('admin_autonomo_id')->with(['user', 'areas.equipos.categoria'])->find($id);
         if (!$negocio) {
             return response()->json(['message' => 'Negocio no encontrado'], 404);
         }
@@ -162,16 +164,21 @@ class NegocioController extends Controller
 
             $uniqueEquipos = [];
             foreach ($rawEquipos as $eq) {
-                $key = isset($eq['id']) && is_numeric($eq['id']) ? 'id_'.$eq['id'] : 'name_'.($eq['nombre'] ?? '');
+                $key = (isset($eq['id']) && is_numeric($eq['id'])) 
+                    ? 'id_'.$eq['id'] 
+                    : (isset($eq['id']) && !empty($eq['id']) 
+                        ? 'str_'.$eq['id'] 
+                        : 'name_'.($eq['nombre'] ?? '').'_'.($eq['subAreaId'] ?? '').'_'.($eq['serie'] ?? ''));
                 $uniqueEquipos[$key] = $eq;
             }
+            $equiposData = array_values($uniqueEquipos);
 
-            $incomingEqIds = collect($uniqueEquipos)->pluck('id')->filter(fn($id) => is_numeric($id))->toArray();
+            $incomingEqIds = collect($equiposData)->pluck('id')->filter(fn($id) => is_numeric($id))->toArray();
             $area->equipos()->whereNotIn('id', $incomingEqIds)->delete();
 
-            foreach ($uniqueEquipos as $eqInput) {
-                $equipo = is_numeric($eqInput['id']) ? $area->equipos()->find($eqInput['id']) : new \App\Models\LevantamientoEquipo();
-                if (!$equipo && is_numeric($eqInput['id'])) continue;
+            foreach ($equiposData as $eqInput) {
+                $equipo = (isset($eqInput['id']) && is_numeric($eqInput['id'])) ? $area->equipos()->find($eqInput['id']) : new \App\Models\LevantamientoEquipo();
+                if (!$equipo && isset($eqInput['id']) && is_numeric($eqInput['id'])) continue;
                 $equipo->fill([
                     'nombre' => $eqInput['nombre'], 'marca' => $eqInput['marca'],
                     'modelo' => $eqInput['modelo'], 'serie' => $eqInput['serie'] ?? null,
